@@ -5,10 +5,10 @@
 - 名称：dujiao-next（独角数卡 NEXT）
 - 仓库：<https://github.com/dujiao-next/dujiao-next>
 - 版本基线：**v1.5.2**（commit `c8144b2`）
-- 许可：GNU AGPL-3.0（见本仓库 `LICENSE`，版权归上游作者所有）
+- 许可：GNU GPL v3.0（仓库内 `LICENSE` 为 GPL-3.0 全文；GitHub 许可证识别结果为 `GPL-3.0`）
 
 本仓库是上述项目 **前端（`frontend/user`）的衍生修改**，不含上游完整源码。
-使用、分发、修改时请自行获取上游源码并遵守 AGPL-3.0。
+使用、分发、修改时请自行获取上游源码并遵守 GPL-3.0。
 
 ## 本仓库改了什么
 
@@ -31,7 +31,7 @@
 | 语录接口 | `optional-backend/quote_handler.go` | `GET /api/v1/public/daily-quote`；缺失时副标题显示内置文案 |
 | 在线人数接口 | `optional-backend/presence_handler.go` | `POST /api/v1/public/presence`；缺失时显示固定数字 |
 
-以上均为本仓库作者原创（不含上游代码的复制粘贴式改写），同样以 AGPL-3.0 发布。
+以上均为本仓库作者原创（不含上游代码的复制粘贴式改写），同样以 GPL-3.0 发布。
 
 ## 不含的内容
 

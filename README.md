@@ -11,8 +11,9 @@
 
 1. **来源**：本仓库所有代码均衍生自 [dujiao-next](https://github.com/dujiao-next/dujiao-next) 官方开源项目的前端源码，
    原始版权归原作者所有。本仓库仅在其基础上做视觉风格修改，**不是官方项目**，与官方无任何隶属或背书关系。
-2. **许可**：官方项目使用 **AGPL-3.0**。作为衍生作品，本仓库同样以 **AGPL-3.0** 发布（见 `LICENSE`），
-   保留原版权声明，并随仓库提供完整可构建的源码。你若分发修改版，需同样遵守 AGPL-3.0（开源、保留声明、提供源码）。
+2. **许可**：官方项目使用 **GPL-3.0**（v1.5.2 仓库 `LICENSE` 为 GNU GPL v3，GitHub 标记 `GPL-3.0`）。
+   作为衍生作品，本仓库同样以 **GPL-3.0** 发布（见 `LICENSE`），保留原版权声明。
+   你若分发修改版，需同样遵守 GPL-3.0：开源、保留声明、向接收者提供完整对应源码。
 3. **用途**：仅供学习交流与个人自建站点参考，**禁止用于任何违法违规用途**。
    使用本主题造成的任何直接或间接后果（含店铺经营、合规、数据损失），由使用者自行承担。
 4. **商标与素材**：`疯狂星期四`、`KFC`、`VME50`、`V我50` 等为网络流行语或第三方商标/品牌。
@@ -63,7 +64,7 @@ classic 模板（官方原有结构）
 ```
 .
 ├── README.md                  # 本文档
-├── LICENSE                    # AGPL-3.0（继承自上游）
+├── LICENSE                    # GPL-3.0（继承自上游）
 ├── NOTICE.md                  # 来源与改动清单
 ├── install.sh                 # 把 files/ 覆盖到指定源码树（可选）
 ├── files/                     # 完整文件版（覆盖式安装）
@@ -227,4 +228,4 @@ git apply -R /path/to/dujiao-next-kfc-theme/patches/kfc-theme-v1.5.2.patch
 
 ## 十一、许可
 
-[AGPL-3.0](LICENSE)，继承自上游 dujiao-next。衍生于 <https://github.com/dujiao-next/dujiao-next>。
+[GPL-3.0](LICENSE)，继承自上游 dujiao-next。衍生于 <https://github.com/dujiao-next/dujiao-next>。
