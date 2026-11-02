@@ -1,0 +1,24 @@
+diff --git a/internal/constants/constants.go b/internal/constants/constants.go
+--- a/internal/constants/constants.go
++++ b/internal/constants/constants.go
+@@ -532,6 +532,7 @@ const (
+ const (
+ 	StorefrontTemplateClassic = "classic"
+ 	StorefrontTemplateVault   = "vault"
++	StorefrontTemplateKfc     = "kfc"
+ 	StorefrontTemplateDefault = StorefrontTemplateClassic
+ )
+ 
+diff --git a/internal/modules/settings/application/site_normalize.go b/internal/modules/settings/application/site_normalize.go
+--- a/internal/modules/settings/application/site_normalize.go
++++ b/internal/modules/settings/application/site_normalize.go
+@@ -337,6 +337,9 @@ func normalizeStorefrontTemplate(raw interface{}) string {
+ 	if normalizeSettingText(raw) == constants.StorefrontTemplateVault {
+ 		return constants.StorefrontTemplateVault
+ 	}
++	if normalizeSettingText(raw) == constants.StorefrontTemplateKfc {
++		return constants.StorefrontTemplateKfc
++	}
+ 	return constants.StorefrontTemplateDefault
+ }
+ 

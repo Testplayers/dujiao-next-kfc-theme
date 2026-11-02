@@ -1,0 +1,604 @@
+diff --git a/frontend/user/src/App.vue b/frontend/user/src/App.vue
+index df79c71..1300c45 100644
+--- a/frontend/user/src/App.vue
++++ b/frontend/user/src/App.vue
+@@ -1,5 +1,5 @@
+ <template>
+-  <div id="app" class="min-h-screen bg-background text-foreground flex flex-col">
++  <div id="app" class="min-h-screen bg-background text-foreground flex flex-col" :class="{ 'template-kfc': isKfc }">
+     <!-- 首次访问还不知道站点用哪套模板时先不渲染外壳，等配置返回（见 shellReady） -->
+     <template v-if="shellReady">
+       <!-- vault 模板：自带顶栏/页脚的外壳包裹页面（控制台仍走下方分支） -->
+@@ -16,6 +16,22 @@
+       <!-- classic 模板 / 分销控制台（保持原有结构不变） -->
+       <template v-else>
+         <Navbar v-if="!isResellerConsole" />
++        <div v-if="isKfc && !isResellerConsole" class="kfc-marquee">
++          <div class="kfc-marquee-track">
++            <span class="px-4">精神状态遥遥领先</span><span class="px-2">✦</span><span class="px-4">一周只疯一天</span><span class="px-2">✦</span><span class="px-4">今天你 V50 了吗</span><span class="px-2">✦</span><span class="px-4">不疯狂不星期四</span><span class="px-2">✦</span><span class="px-4">疯四文字，代代相传</span><span class="px-2">✦</span><span class="px-4">V ME 50</span><span class="px-2">✦</span><span class="px-4">精神状态遥遥领先</span><span class="px-2">✦</span><span class="px-4">一周只疯一天</span><span class="px-2">✦</span><span class="px-4">今天你 V50 了吗</span><span class="px-2">✦</span><span class="px-4">不疯狂不星期四</span><span class="px-2">✦</span><span class="px-4">疯四文字，代代相传</span><span class="px-2">✦</span><span class="px-4">V ME 50</span><span class="px-2">✦</span>
++          </div>
++        </div>
++        <div v-if="isKfc && !isResellerConsole" class="kfc-hero">
++          <div class="kfc-hero-title">
++            <span>疯狂星期四</span>
++            <span class="kfc-hero-badge">VME50</span>
++          </div>
++          <p class="kfc-hero-sub" :style="{ fontSize: heroQuoteSize }">{{ heroQuote }}</p>
++          <div class="kfc-hero-row">
++            <a href="/products" class="kfc-hero-cta">{{ kfcCta }}</a>
++            <span class="kfc-hero-online"><span class="kfc-hero-online-dot"></span>{{ kfcOnline }} 位文案鬼才在线</span>
++          </div>
++        </div>
+         <main class="flex-1" :class="isResellerConsole ? '' : 'pb-14 lg:pb-0'">
+           <ErrorBoundary>
+             <RouterView v-slot="{ Component }">
+@@ -38,7 +54,7 @@
+ </template>
+ 
+ <script setup lang="ts">
+-import { computed, defineAsyncComponent, ref, watch } from 'vue'
++import { computed, defineAsyncComponent, ref, watch, onMounted } from 'vue'
+ import { useRoute, useRouter } from 'vue-router'
+ import { useAppStore } from './stores/app'
+ import { getActiveTemplate, hasTemplateHint, rememberTemplate } from './templates/registry'
+@@ -60,6 +76,7 @@ const route = useRoute()
+ const isResellerConsole = computed(() => route.meta.resellerConsole === true)
+ // getActiveTemplate 读取 appStore.config（响应式），config 加载后会重新计算
+ const isVault = computed(() => getActiveTemplate() === 'vault')
++const isKfc = computed(() => getActiveTemplate() === 'kfc')
+ 
+ // 模板来自异步的站点配置。已有线索（预览覆盖 / 上次访问记住的模板）时立即渲染外壳；
+ // 首次访问则等配置返回再渲染，避免先闪一下 classic 外壳。配置加载失败时由首个路由就绪兜底
+@@ -70,6 +87,61 @@ if (!shellReady.value) {
+   void useRouter().isReady().catch(() => {}).finally(() => { shellReady.value = true })
+ }
+ watch(() => appStore.config?.storefront_template, (value) => rememberTemplate(value), { immediate: true })
++
++const heroQuote = ref('不疯狂不星期四')
++const kfcCta = ref('今天就是疯狂星期四！V我50')
++const kfcOnline = ref(38)
++
++const heroQuoteSize = computed(() => {
++  const len = heroQuote.value.length
++  if (len <= 30) return '16px'
++  if (len <= 60) return '15px'
++  if (len <= 100) return '14px'
++  return '13px'
++})
++
++const loadKfcBanner = async () => {
++  try {
++    const res = await fetch('/api/v1/public/daily-quote')
++    const json = await res.json()
++    const text = (json && (json.quote || (json.data && json.data.quote))) || ''
++    if (text) heroQuote.value = text
++  } catch {
++    /* 保底文案 */
++  }
++  const day = new Date().getDay()
++  if (day === 4) kfcCta.value = '今天就是疯狂星期四！V我50'
++  else if (day === 5) kfcCta.value = '明天就是疯狂星期四！'
++  else kfcCta.value = '距下个疯狂星期四还有 ' + ((11 - day) % 7) + ' 天'
++}
++
++const loadPresence = async () => {
++  try {
++    let vid = localStorage.getItem('dj-visitor-id')
++    if (!vid) {
++      vid = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()
++      localStorage.setItem('dj-visitor-id', vid)
++    }
++    const res = await fetch('/api/v1/public/presence', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ visitor_id: vid })
++    })
++    const j = await res.json()
++    if (j && typeof j.count === 'number' && j.count > 0) kfcOnline.value = j.count
++  } catch {
++    /* 网络异常保留当前值 */
++  }
++}
++
++onMounted(() => {
++  if (isKfc.value) { loadKfcBanner(); loadPresence() }
++  setInterval(() => { if (isKfc.value) loadPresence() }, 30000)
++})
++
++watch(isKfc, (v) => {
++  if (v) { loadKfcBanner(); loadPresence() }
++})
+ </script>
+ 
+ <style>
+diff --git a/frontend/user/src/components/Footer.vue b/frontend/user/src/components/Footer.vue
+index 1f2faf7..226108e 100644
+--- a/frontend/user/src/components/Footer.vue
++++ b/frontend/user/src/components/Footer.vue
+@@ -59,7 +59,7 @@
+                 <path
+                   d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z" />
+               </svg>
+-              <span>Telegram</span>
++              <span class="text-gray-900">Telegram</span>
+             </a>
+             <a v-if="config?.contact?.whatsapp" :href="config.contact.whatsapp" target="_blank"
+               rel="noopener noreferrer"
+@@ -68,8 +68,40 @@
+                 <path
+                   d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+               </svg>
+-              <span>WhatsApp</span>
++              <span class="text-gray-900">WhatsApp</span>
+             </a>
++            <template v-if="config?.contact?.qq_mode === 'qq_group'">
++              <a v-if="config?.contact?.qq && String(config.contact.qq).startsWith('http')" :href="config.contact.qq" target="_blank"
++                rel="noopener noreferrer"
++                class="flex items-center space-x-3 text-sm hover:text-gray-900 dark:hover:text-white transition-colors p-3 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10">
++                <svg class="w-5 h-5 text-sky-400" fill="currentColor" viewBox="0 0 24 24">
++                  <path d="M12.003 2c-2.265 0-4.328.934-5.824 2.436C4.683 5.938 3.75 8.001 3.75 10.266c0 2.04.733 3.918 1.955 5.355-.14.966-.545 2.086-1.403 2.905-.24.23-.096.64.225.648 1.6.044 2.9-.626 3.8-1.42a9.63 9.63 0 003.676.717c2.265 0 4.328-.934 5.824-2.436 1.496-1.502 2.43-3.565 2.43-5.83 0-2.265-.934-4.328-2.43-5.83A8.16 8.16 0 0012.003 2z"/>
++                </svg>
++                <span class="text-gray-900">QQ 群</span>
++              </a>
++              <div v-else-if="config?.contact?.qq" class="flex items-center space-x-3 text-sm p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5">
++                <svg class="w-5 h-5 text-sky-400" fill="currentColor" viewBox="0 0 24 24">
++                  <path d="M12.003 2c-2.265 0-4.328.934-5.824 2.436C4.683 5.938 3.75 8.001 3.75 10.266c0 2.04.733 3.918 1.955 5.355-.14.966-.545 2.086-1.403 2.905-.24.23-.096.64.225.648 1.6.044 2.9-.626 3.8-1.42a9.63 9.63 0 003.676.717c2.265 0 4.328-.934 5.824-2.436 1.496-1.502 2.43-3.565 2.43-5.83 0-2.265-.934-4.328-2.43-5.83A8.16 8.16 0 0012.003 2z"/>
++                </svg>
++                <span>QQ 群：{{ config.contact.qq }}</span>
++              </div>
++            </template>
++            <template v-else>
++              <a v-if="config?.contact?.qq && String(config.contact.qq).startsWith('http')" :href="config.contact.qq" target="_blank"
++                rel="noopener noreferrer"
++                class="flex items-center space-x-3 text-sm hover:text-gray-900 dark:hover:text-white transition-colors p-3 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10">
++                <svg class="w-5 h-5 text-sky-400" fill="currentColor" viewBox="0 0 24 24">
++                  <path d="M12.003 2c-2.265 0-4.328.934-5.824 2.436C4.683 5.938 3.75 8.001 3.75 10.266c0 2.04.733 3.918 1.955 5.355-.14.966-.545 2.086-1.403 2.905-.24.23-.096.64.225.648 1.6.044 2.9-.626 3.8-1.42a9.63 9.63 0 003.676.717c2.265 0 4.328-.934 5.824-2.436 1.496-1.502 2.43-3.565 2.43-5.83 0-2.265-.934-4.328-2.43-5.83A8.16 8.16 0 0012.003 2z"/>
++                </svg>
++                <span class="text-gray-900">QQ</span>
++              </a>
++              <div v-else-if="config?.contact?.qq" class="flex items-center space-x-3 text-sm p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5">
++                <svg class="w-5 h-5 text-sky-400" fill="currentColor" viewBox="0 0 24 24">
++                  <path d="M12.003 2c-2.265 0-4.328.934-5.824 2.436C4.683 5.938 3.75 8.001 3.75 10.266c0 2.04.733 3.918 1.955 5.355-.14.966-.545 2.086-1.403 2.905-.24.23-.096.64.225.648 1.6.044 2.9-.626 3.8-1.42a9.63 9.63 0 003.676.717c2.265 0 4.328-.934 5.824-2.436 1.496-1.502 2.43-3.565 2.43-5.83 0-2.265-.934-4.328-2.43-5.83A8.16 8.16 0 0012.003 2z"/>
++                </svg>
++                <span class="text-gray-900">QQ：{{ config.contact.qq }}</span>
++              </div>
++            </template>
+             <a v-if="config?.contact?.email" :href="`mailto:${config.contact.email}`"
+               class="flex items-center space-x-3 text-sm hover:text-gray-900 dark:hover:text-white transition-colors p-3 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10">
+               <Mail class="w-5 h-5 text-amber-400" />
+@@ -90,20 +122,6 @@
+         class="border-t pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+         <div class="space-y-1 text-center md:text-left">
+           <p>&copy; {{ currentYear }} {{ brandSiteName }}. {{ t('footer.rights') }}</p>
+-          <p class="flex items-center justify-center gap-1 md:justify-start">
+-            <a
+-              href="https://github.com/dujiao-next"
+-              target="_blank"
+-              rel="noopener noreferrer"
+-              aria-label="Dujiao-Next on GitHub"
+-              class="inline-flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-gray-400"
+-            >
+-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+-                <path d="M12 .5C5.648.5.5 5.648.5 12c0 5.084 3.292 9.4 7.86 10.922.575.106.784-.25.784-.556 0-.273-.01-1-.016-1.962-3.197.694-3.872-1.54-3.872-1.54-.522-1.326-1.274-1.678-1.274-1.678-1.042-.713.079-.699.079-.699 1.152.081 1.758 1.183 1.758 1.183 1.024 1.755 2.688 1.248 3.343.954.104-.742.401-1.248.73-1.535-2.552-.29-5.236-1.276-5.236-5.678 0-1.254.448-2.28 1.182-3.084-.118-.29-.512-1.457.112-3.04 0 0 .964-.308 3.158 1.178a10.98 10.98 0 0 1 2.876-.387c.976.004 1.96.132 2.878.387 2.192-1.486 3.154-1.178 3.154-1.178.626 1.583.232 2.75.114 3.04.736.804 1.18 1.83 1.18 3.084 0 4.413-2.688 5.384-5.248 5.668.412.354.78 1.052.78 2.12 0 1.53-.014 2.764-.014 3.14 0 .31.206.668.79.554C20.212 21.396 23.5 17.083 23.5 12 23.5 5.648 18.352.5 12 .5Z" />
+-              </svg>
+-              <span>Dujiao-Next</span>
+-            </a>
+-          </p>
+         </div>
+         <div class="flex flex-col items-center gap-2 md:items-end">
+           <div class="flex flex-wrap items-center gap-x-4 gap-y-1 justify-center md:justify-end">
+diff --git a/frontend/user/src/style.css b/frontend/user/src/style.css
+index 4bea053..f6fcfcb 100644
+--- a/frontend/user/src/style.css
++++ b/frontend/user/src/style.css
+@@ -700,3 +700,341 @@ html[data-telegram-mini-app="true"] body {
+ .theme-prose p:has(> img) + p:has(> img) > img {
+   margin-top: 0;
+ }
++/* ============================================================
++ * KFC 疯狂星期四主题（storefront_template = kfc）
++ * 保持 classic 布局结构，仅覆盖配色与装饰元素。
++ * ============================================================ */
++
++.template-kfc {
++  --ui-bg-page: #f4f1ea;
++  --ui-bg-elevated: #fffdf8;
++  --ui-bg-soft: #f7f3ea;
++  --ui-bg-muted: #efe9dd;
++  --ui-bg-overlay: rgba(255, 253, 248, 0.85);
++  --ui-bg-overlay-strong: rgba(255, 253, 248, 0.94);
++  --ui-text-primary: #121212;
++  --ui-text-secondary: #3d3d38;
++  --ui-text-muted: #6b6b62;
++  --ui-border: rgba(18, 18, 18, 0.14);
++  --ui-border-strong: rgba(18, 18, 18, 0.24);
++  --ui-accent: #c41200;
++  --ui-accent-hover: #a30f00;
++  --ui-accent-soft: rgba(196, 18, 0, 0.12);
++  --ui-focus-ring: rgba(196, 18, 0, 0.24);
++  --ui-price-promotion: #c41200;
++  background: #f4f1ea;
++}
++
++.dark .template-kfc {
++  --ui-bg-page: #0a0a0a;
++  --ui-bg-elevated: #141414;
++  --ui-bg-soft: #1a1a1a;
++  --ui-bg-muted: #202020;
++  --ui-bg-overlay: rgba(20, 20, 20, 0.85);
++  --ui-bg-overlay-strong: rgba(20, 20, 20, 0.94);
++  --ui-text-primary: #ededed;
++  --ui-text-secondary: #cfcfc8;
++  --ui-text-muted: #9a9a90;
++  --ui-border: rgba(255, 199, 44, 0.18);
++  --ui-border-strong: rgba(255, 199, 44, 0.3);
++  --ui-accent: #ffc72c;
++  --ui-accent-hover: #ffd45c;
++  --ui-accent-soft: rgba(255, 199, 44, 0.14);
++  --ui-focus-ring: rgba(255, 199, 44, 0.26);
++  --ui-price-promotion: #ffc72c;
++  --ui-text-on-accent: #121212;
++}
++
++.template-kfc .kfc-topbanner {
++  position: relative;
++  background: linear-gradient(135deg, #c41200, #ff7a3c);
++  color: #fff;
++  padding: 9px 14px;
++  font-size: 13px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 10px;
++  line-height: 1.4;
++}
++
++.template-kfc .kfc-topbanner-quote {
++  display: -webkit-box;
++  -webkit-line-clamp: 2;
++  -webkit-box-orient: vertical;
++  overflow: hidden;
++  text-align: center;
++  font-weight: 600;
++}
++
++.template-kfc .kfc-topbanner-cta {
++  flex-shrink: 0;
++  display: inline-flex;
++  align-items: center;
++  padding: 3px 10px;
++  border-radius: 0;
++  background: #ffc72c;
++  color: #121212;
++  font-weight: 700;
++  font-size: 12px;
++  white-space: nowrap;
++  transition: transform 0.15s ease;
++}
++
++.template-kfc .kfc-topbanner-cta:hover {
++  transform: scale(1.04);
++}
++
++.template-kfc .kfc-marquee {
++  overflow: hidden;
++  background: #ffc72c;
++  padding: 6px 0;
++}
++
++.template-kfc .kfc-marquee-track {
++  display: inline-flex;
++  white-space: nowrap;
++  color: #121212;
++  font-weight: 700;
++  font-size: 13px;
++  animation: kfc-marquee-scroll 28s linear infinite;
++}
++
++@keyframes kfc-marquee-scroll {
++  from { transform: translateX(0); }
++  to { transform: translateX(-50%); }
++}
++
++.template-kfc .fixed.top-0.left-0 {
++  position: relative !important;
++  background: #121212 !important;
++  border-bottom-color: rgba(255, 199, 44, 0.25) !important;
++}
++
++.template-kfc .pt-24,
++.template-kfc .pt-32,
++.template-kfc .pt-20,
++.template-kfc .md\:pt-36 {
++  padding-top: 0 !important;
++}
++
++.template-kfc .products-page .mt-12 {
++  margin-top: 0 !important;
++}
++
++.template-kfc .theme-wordmark {
++  background: transparent !important;
++  border-radius: 999px !important;
++  border-color: #ffc72c !important;
++  box-shadow: none !important;
++  padding: 4px 14px !important;
++}
++
++.template-kfc .fixed.top-0.left-0 a:not(.text-destructive),
++.template-kfc .fixed.top-0.left-0 button:not(.text-destructive) {
++  color: #ededed;
++}
++
++.template-kfc .fixed.top-0.left-0 a:hover,
++.template-kfc .fixed.top-0.left-0 button:hover {
++  color: #ffc72c;
++}
++
++/* vme.im style section label: tilted yellow tag with black border */
++.template-kfc .home-page .theme-section-heading,
++.template-kfc .products-page h1 {
++  display: inline-block;
++  background: #ffc72c;
++  color: #000;
++  border: 2px solid #000;
++  border-radius: 0;
++  padding: 4px 12px;
++  font-size: 24px;
++  font-weight: 900;
++  letter-spacing: 0.02em;
++  transform: rotate(2deg);
++  box-shadow: none;
++}
++
++/* vme.im style nav: active item = red bg white text (in utilities layer to win over !text-primary) */
++@layer utilities {
++  .template-kfc .fixed.top-0.left-0 div[class*="space-x-1"] a.router-link-active:not(.theme-wordmark),
++  .template-kfc .fixed.top-0.left-0 div[class*="space-x-1"] a.router-link-exact-active:not(.theme-wordmark) {
++    background: #c41200 !important;
++    color: #fff !important;
++    padding: 8px 14px !important;
++    border-radius: 0 !important;
++  }
++
++  .template-kfc .fixed.top-0.left-0 div[class*="space-x-1"] a.router-link-active svg,
++  .template-kfc .fixed.top-0.left-0 div[class*="space-x-1"] a.router-link-exact-active svg {
++    opacity: 1;
++  }
++
++  .template-kfc .fixed.top-0.left-0 a.router-link-active:not(.theme-wordmark):hover,
++  .template-kfc .fixed.top-0.left-0 div[class*="space-x-1"] a.router-link-exact-active:not(.theme-wordmark):hover {
++    color: #fff !important;
++  }
++}
++
++/* kill ghost button grey hover bg on black nav */
++.template-kfc .fixed.top-0.left-0 [class*="hover:bg-accent"]:hover {
++  background: transparent !important;
++}
++
++/* login button: yellow bg black text */
++.template-kfc .fixed.top-0.left-0 a[href="/auth/login"] {
++  background: #ffc72c !important;
++  color: #000 !important;
++  border: 2px solid #000 !important;
++  border-radius: 6px !important;
++  padding: 6px 14px !important;
++  font-weight: 900 !important;
++}
++
++.template-kfc .fixed.top-0.left-0 a[href="/auth/login"] svg {
++  opacity: 1;
++  color: #000;
++}
++
++.template-kfc .fixed.top-0.left-0 a[href="/auth/login"]:hover {
++  background: #ffd84d !important;
++  color: #000 !important;
++}
++
++.template-kfc footer {
++  background: #121212 !important;
++  color: #ededed !important;
++}
++
++.template-kfc footer h4 {
++  color: #ffc72c !important;
++}
++
++.template-kfc footer .text-muted-foreground,
++.template-kfc footer .hover\:text-gray-900 {
++  color: #b8b8b0 !important;
++}
++
++.template-kfc .group\/card {
++  box-shadow: 3px 3px 0 rgba(18, 18, 18, 0.9);
++  border-color: rgba(18, 18, 18, 0.85);
++}
++
++.template-kfc .group\/card:hover {
++  box-shadow: 4px 4px 0 #c41200;
++  transform: translateY(-2px);
++}
++
++/* 首页疯狂星期四大标题区（仿 vme.im/jokes 顶部） */
++.template-kfc .kfc-hero {
++  text-align: center;
++  padding: 48px 16px 40px;
++  background: #f4f1ea;
++}
++
++.template-kfc .kfc-hero-title {
++  font-size: clamp(2.6rem, 7vw, 4.2rem);
++  font-weight: 900;
++  color: #121212;
++  letter-spacing: 0.01em;
++  display: inline-flex;
++  align-items: flex-start;
++  gap: 12px;
++  flex-wrap: wrap;
++  justify-content: center;
++}
++
++.template-kfc .kfc-hero-badge {
++  display: inline-block;
++  background: #ffc72c;
++  color: #000;
++  font-size: 18px;
++  font-weight: 900;
++  padding: 2px 6px;
++  border-radius: 0;
++  border: 2px solid #000;
++  margin-top: 6px;
++  transform: rotate(3deg);
++  box-shadow: 2px 2px 0 #000;
++  vertical-align: middle;
++}
++
++.template-kfc .kfc-hero-sub {
++  max-width: 720px;
++  margin: 8px auto 0;
++  color: var(--color-muted-foreground);
++  font-size: 16px;
++  font-weight: 700;
++  line-height: 1.75;
++  word-break: break-word;
++  white-space: normal;
++  overflow-wrap: anywhere;
++}
++
++.template-kfc .kfc-hero-row {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 14px;
++  margin-top: 22px;
++  flex-wrap: wrap;
++}
++
++.template-kfc .kfc-hero-online {
++  display: inline-flex;
++  align-items: center;
++  gap: 6px;
++  font-size: 13px;
++  font-weight: 600;
++  color: #8a8a80;
++}
++
++.template-kfc .kfc-hero-online-dot {
++  width: 8px;
++  height: 8px;
++  border-radius: 50%;
++  background: #ff4d4f;
++}
++
++.template-kfc .kfc-hero-cta {
++  display: inline-flex;
++  padding: 4px 12px;
++  background: #ffffff;
++  color: #000;
++  font-weight: 900;
++  font-size: 14px;
++  border-radius: 0;
++  border: 2px solid #000;
++  box-shadow: 2px 2px 0 #000;
++  transition: transform 0.15s ease, box-shadow 0.15s ease;
++}
++
++.template-kfc .kfc-hero-cta:hover {
++  transform: translateY(-1px);
++  box-shadow: 3px 3px 0 #000;
++  color: #000;
++}
++
++.dark .template-kfc .kfc-hero {
++  background: #0a0a0a;
++}
++
++.dark .template-kfc .kfc-hero-title {
++  color: #ededed;
++}
++
++.dark .template-kfc .kfc-hero-sub {
++  color: #9a9a90;
++}
++
++.dark .template-kfc .kfc-hero-cta {
++  background: #ffffff;
++  color: #121212;
++  border-color: #ededed;
++  box-shadow: 3px 3px 0 rgba(255, 199, 44, 0.45);
++}
++
++.dark .template-kfc .kfc-hero-online {
++  color: #9a9a90;
++}
+diff --git a/frontend/user/src/templates/registry.ts b/frontend/user/src/templates/registry.ts
+index 96b65fb..9722f99 100644
+--- a/frontend/user/src/templates/registry.ts
++++ b/frontend/user/src/templates/registry.ts
+@@ -8,9 +8,9 @@ import { useAppStore } from '../stores/app'
+  *   因此可以一页一页地把新设计搬进 vault，旧站全程可用。
+  */
+ 
+-export type StorefrontTemplate = 'classic' | 'vault'
++export type StorefrontTemplate = 'classic' | 'vault' | 'kfc'
+ 
+-export const STOREFRONT_TEMPLATES: StorefrontTemplate[] = ['classic', 'vault']
++export const STOREFRONT_TEMPLATES: StorefrontTemplate[] = ['classic', 'vault', 'kfc']
+ export const DEFAULT_TEMPLATE: StorefrontTemplate = 'classic'
+ 
+ const OVERRIDE_KEY = 'dj-storefront-template'
+diff --git a/frontend/user/src/views/Home.vue b/frontend/user/src/views/Home.vue
+index ba70f3c..8a0ac4a 100644
+--- a/frontend/user/src/views/Home.vue
++++ b/frontend/user/src/views/Home.vue
+@@ -349,6 +349,9 @@
+ 
+ <script setup lang="ts">
+ import { computed, onMounted, onUnmounted, ref } from 'vue'
++
++
++
+ import { useRouter, useRoute } from 'vue-router'
+ import { useI18n } from 'vue-i18n'
+ import { ArrowRight, ChevronLeft, ChevronRight, PackageOpen, Search, X } from 'lucide-vue-next'
+@@ -371,6 +374,8 @@ import { useAnnouncement, type HomeAnnouncement } from '../composables/useAnnoun
+ 
+ const router = useRouter()
+ const { t } = useI18n()
++
++
+ const { getLocalizedText } = useLocalized()
+ const appStore = useAppStore()
+ 
+diff --git a/frontend/user/src/views/ProductDetail.vue b/frontend/user/src/views/ProductDetail.vue
+index b2b34b2..8e90f26 100644
+--- a/frontend/user/src/views/ProductDetail.vue
++++ b/frontend/user/src/views/ProductDetail.vue
+@@ -249,9 +249,8 @@
+                   <h2 class="mb-3 text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                     {{ t('productDetail.description') }}
+                   </h2>
+-                  <p class="text-lg leading-relaxed text-muted-foreground">
+-                    {{ getLocalizedText(product.description) }}
+-                  </p>
++                  <!-- 定制 2026-10-11: 简介内网址自动转可点击链接 (linkifyDescription) -->
++                  <p class="text-lg leading-relaxed text-muted-foreground" v-html="linkifyDescription(getLocalizedText(product.description))"></p>
+                 </div>
+               </div>
+ 
+@@ -427,6 +426,13 @@ import { Button } from '@/components/ui/button'
+ 
+ const { t } = useI18n()
+ 
++// 定制 2026-10-11: 商品简介 URL 自动转链接（先转义 HTML 防注入，再识别 http/https）
++function linkifyDescription(text: string): string {
++  if (!text) return ''
++  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
++  return escaped.replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); text-decoration: underline; word-break: break-all;">$1</a>')
++}
++
+ // 视图专属：移动端固定购买条（IntersectionObserver 监听桌面购买区是否出屏）
+ const purchaseActionsRef = ref<HTMLElement | null>(null)
+ const showMobileBar = ref(false)
