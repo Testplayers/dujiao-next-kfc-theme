@@ -35,7 +35,7 @@
 | CTA 右侧 | 真实在线人数「N 位文案鬼才在线」（每 30 秒心跳刷新） |
 | 栏目标题 | 黄底黑字黑边、倾斜 2° 的贴纸标签 |
 | 商品页 | 商品简介里的 URL 自动转成可点击链接（防注入转义） |
-| 页脚 | 支持 QQ / QQ 群联系方式展示 |
+| 页脚 | 保持官方样式（不引入自定义联系方式字段） |
 
 > 仓库本身不含截图。建议你自己部署后截图补充，或参考样式预览。
 
@@ -50,7 +50,7 @@ dujiao-next 的模板机制是「classic / vault 两套内置模板 + `storefron
 classic 模板（官方原有结构）
    + style.css 追加 338 行 KFC 专属样式（作用域都在 .template-kfc / .kfc-* 下）
    + App.vue 增加跑马灯 / Hero / 徽章 / CTA / 在线数的结构块
-   + Home.vue / ProductDetail.vue / Footer.vue 少量适配
+   + Home.vue / ProductDetail.vue 少量适配
    + registry.ts 增加 'kfc' 这个模板标识
 ```
 
@@ -71,18 +71,15 @@ classic 模板（官方原有结构）
 │   └── frontend/user/src/
 │       ├── App.vue
 │       ├── style.css
-│       ├── components/Footer.vue
 │       ├── views/Home.vue
 │       ├── views/ProductDetail.vue
 │       └── templates/registry.ts
-├── patches/
-│   ├── kfc-theme-v1.5.2.patch              # 6 个前台文件，相对官方 v1.5.2 的 diff（推荐）
-│   └── kfc-storefront-whitelist-v1.5.2.patch # 可选：让后端接受 storefront_template=kfc（2 文件）
-└── optional-backend/          # 可选：语录接口 + 在线人数接口
-    ├── README.md
-    ├── quote_handler.go
-    └── presence_handler.go
+└── patches/
+    ├── kfc-theme-v1.5.2.patch              # 5 个前台文件，相对官方 v1.5.2 的 diff（推荐）
+    └── kfc-storefront-whitelist-v1.5.2.patch # 可选：让后端接受 storefront_template=kfc（2 文件）
 ```
+
+> 本仓库**不含后端代码**：主题对语录 / 在线人数两个接口只做「有则用、无则降级」的调用，不附带任何 handler。
 
 ---
 
@@ -117,7 +114,7 @@ chmod +x /path/to/dujiao-next-kfc-theme/install.sh
 /path/to/dujiao-next-kfc-theme/install.sh /path/to/dujiao-next
 ```
 
-或手工把 `files/frontend/user/src/` 下 6 个文件复制到源码树对应位置。
+或手工把 `files/frontend/user/src/` 下 5 个文件复制到源码树对应位置。
 
 ---
 
@@ -179,16 +176,20 @@ https://你的域名/?template=reset    # 清除覆盖
 
 ---
 
-## 八、可选：语录接口与在线人数接口
+## 八、可选接口（本仓库不含后端实现）
 
-主题会请求两个接口，**没有它们也能跑**（自动降级）：
+主题会**尝试**请求两个官方上游没有的接口，**没有它们也能跑**（自动降级，不报错、不影响下单）：
 
 | 接口 | 缺失时的表现 |
 |---|---|
 | `GET /api/v1/public/daily-quote` | 副标题固定显示默认文案「不疯狂不星期四」 |
 | `POST /api/v1/public/presence` | 在线人数固定显示 `38` |
 
-想启用真实数据，把 `optional-backend/` 里两个 handler 放进源码并注册两条路由即可，详见该目录的 `README.md`。
+本仓库**不附带**这两个接口的实现，也不改任何后端代码——想接真实数据（例如自己的语录库、Redis 在线计数）请自行实现，
+返回结构分别是 `{"quote":"..."}` 和 `{"count":N}`。
+
+> 页脚同样不引入 QQ / QQ 群等自定义联系字段：上游 `normalizeSiteContact()` 会丢弃未识别字段，
+> 要加就得同时改后端归一化、校验与后台表单，超出「纯前台主题」的范围，故不包含。
 
 ---
 
